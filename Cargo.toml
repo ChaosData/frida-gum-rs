@@ -1,0 +1,17 @@
+[package]
+name = "gumshoe"
+version = "0.1.0"
+authors = ["jtd"]
+build = "build.rs"
+
+[dependencies]
+glib = "0.1.3"
+glib-sys = "0.3.4"
+gobject-sys = "0.3.4"
+libc = "0.2"
+goblin = "0.0.10"
+gcc = "0.3"
+base64 = "~0.6.0"
+
+[build-dependencies]
+base64 = "~0.6.0"

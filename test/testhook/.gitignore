@@ -1,0 +1,5 @@
+gen/
+target/
+libfrida-gum.a
+frida-gum.h
+frida-gum-wrapper.c
