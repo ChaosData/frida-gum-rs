@@ -6,11 +6,10 @@ use libc::*;
 
 use std::fs::File;
 use std::io::Read;
-use std::io::Write;
 
-struct TestListener { }
+struct OpenListener { }
 
-impl ArchetypalListener for TestListener {
+impl ArchetypalListener for OpenListener {
   fn on_enter(&mut self, ic: gum::GumInvocationContext) {
     println!(
       "open(2) on_enter called with {:?}: ",
@@ -19,18 +18,18 @@ impl ArchetypalListener for TestListener {
     ic.replace_nth_argument(0, std::ffi::CString::new("/etc/hostname").unwrap().into_raw())
   }
 
-  fn on_leave(&mut self, ic: gum::GumInvocationContext) {
+  fn on_leave(&mut self, _ic: gum::GumInvocationContext) {
     println!("open(2) on_leave called!")
   }
 
   fn ptr(&mut self) -> *mut c_void {
-    self as *mut TestListener as *mut c_void
+    self as *mut OpenListener as *mut c_void
   }
 }
 
 pub fn test_testhook() {
   println!("testhook test");
-  hook_exported_by_name(&mut TestListener{}, "open");
+  hook_exported_by_name(&mut OpenListener{}, "open");
 
   let mut data = String::new();
   let mut f = File::open("/etc/hosts").expect("Unable to open file");
@@ -40,13 +39,10 @@ pub fn test_testhook() {
 
 #[cfg(test)]
 mod tests {
-  use gumshoe;
-  use std;
   use test_testhook;
 
   #[test]
   fn it_works() {
-    gumshoe::test();
     test_testhook();
   }
 }

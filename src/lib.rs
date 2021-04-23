@@ -1,12 +1,3 @@
-extern crate base64;
-use base64::decode;
-
-use std::fs::File;
-use std::io::Read;
-use std::io::Write;
-
-extern crate gcc;
-
 extern crate libc;
 use libc::*;
 
@@ -14,46 +5,64 @@ pub mod gum;
 
 include!(concat!(env!("OUT_DIR"), "/frida-gum-wrapper-code.rs"));
 
-pub fn link() {
-  let b64 = codeb64();
-  let code = &decode(b64).unwrap();
+#[macro_export]
+macro_rules! link {
+  () => {
+    extern crate base64;
+    extern crate cc;
 
-  std::fs::create_dir_all("gen").unwrap();
-  let mut f = File::create("gen/frida-gum-wrapper.c").expect("Unable to create file");
-  f.write_all(code.as_slice()).expect("Unable to write data");
-  
-  println!("cargo:rustc-link-search=native=frida/{}",
-           std::env::var("TARGET").unwrap()
-  );
-  println!("cargo:rustc-link-lib=static=frida-gum");
-  
-  gcc::Config::new()
-    .include("frida")
-    .file("gen/frida-gum-wrapper.c")
-    .compile("libfrida-gum-wrapper.a");
+    use base64::decode;
+
+    use std::fs::File;
+    use std::io::Write;
+
+    pub fn link() {
+      let b64 = gumshoe::codeb64();
+      let code = &decode(b64).unwrap();
+
+      std::fs::create_dir_all("gen").unwrap();
+      let mut f = File::create("gen/frida-gum-wrapper.c").expect("Unable to create file");
+      f.write_all(code.as_slice()).expect("Unable to write data");
+
+      println!("cargo:rustc-flags=-L frida/{}", std::env::var("TARGET").unwrap());
+      println!("cargo:rustc-flags=-l frida-gum");
+      println!("cargo:rustc-flags=-l dl");
+      println!("cargo:rustc-flags=-l resolv");
+      println!("cargo:rustc-flags=-l rt");
+      println!("cargo:rustc-flags=-l m");
+      println!("cargo:rustc-flags=-l pthread");
+
+      cc::Build::new()
+        .include("frida")
+        .file("gen/frida-gum-wrapper.c")
+        .compile("frida-gum-wrapper");
+    }
+
+    fn main() {
+      link()
+    }
+  }
 }
 
 extern {
-  fn gum_init_embedded() -> ();
-  fn gum_interceptor_obtain() -> *mut c_void;
-  fn get_new_archetypal_listener() -> *mut c_void;
-  fn ArchetypalListener_fill(this: *mut c_void,
-                             on_enter: *const c_void,
-                             on_leave: *const c_void,
-                             obj: *mut c_void);
+  pub fn gum_init_embedded() -> ();
+  pub fn gum_interceptor_obtain() -> *mut c_void;
+  pub fn get_new_archetypal_listener() -> *mut c_void;
+  pub fn ArchetypalListener_fill(this: *mut c_void,
+                                 on_enter: *const c_void,
+                                 on_leave: *const c_void,
+                                 obj: *mut c_void);
 
-  fn setup_hook(interceptor: *mut c_void,
-                listener: *mut c_void,
-                addr: usize);
+  pub fn setup_hook(interceptor: *mut c_void,
+                    listener: *mut c_void,
+                    addr: usize);
 
-  fn gum_module_find_export_by_name(module_name: *const c_char,
-                                    symbol_name: *const c_char) -> usize;
-  fn gum_interceptor_detach_listener(interceptor: *mut c_void,
-                                     listener: *mut c_void);
-  fn g_object_unref(obj: *const c_void) -> ();
-  fn gum_deinit_embedded() -> ();
-
-
+  pub fn gum_module_find_export_by_name(module_name: *const c_char,
+                                        symbol_name: *const c_char) -> usize;
+  pub fn gum_interceptor_detach_listener(interceptor: *mut c_void,
+                                         listener: *mut c_void);
+  pub fn g_object_unref(obj: *const c_void) -> ();
+  pub fn gum_deinit_embedded() -> ();
 }
 
 
@@ -99,82 +108,8 @@ pub fn hook_exported_by_modname<T: ArchetypalListener>(
 }
 
 /*
-struct TestListener { }
-
-impl ArchetypalListener for TestListener {
-  fn on_enter(&mut self, ic: gum::GumInvocationContext) {
-    println!(
-      "open on_enter called with {:?}: ",
-      ic.get_nth_argument_string(0)
-    );
-    ic.replace_nth_argument(0, std::ffi::CString::new("/etc/hostname").unwrap().into_raw())
-  }
-
-  fn on_leave(&mut self, ic: gum::GumInvocationContext) {
-    println!("open on_leave called!")
-  }
-
-  fn ptr(&mut self) -> *mut c_void {
-    self as *mut TestListener as *mut c_void
-  }
-}
-*/
-/*
-struct Test2Listener { }
-
-impl ArchetypalListener for Test2Listener {
-  fn on_enter(&mut self, ic: gum::GumInvocationContext) {
-    println!(
-      "execve on_enter called with {:?}: ",
-      ic.get_nth_argument_string(0)
-    );
-    //ic.replace_nth_argument(0, std::ffi::CString::new("/usr/bin/id").unwrap().into_raw())
-  }
-
-  fn on_leave(&mut self, ic: gum::GumInvocationContext) {
-    println!("execve on_leave called!")
-  }
-}
-
-struct Test3Listener { }
-
-impl ArchetypalListener for Test3Listener {
-  fn on_enter(&mut self, ic: gum::GumInvocationContext) {
-    println!(
-      "getuid on_enter"
-    );
-    //ic.replace_nth_argument(0, std::ffi::CString::new("/usr/bin/id").unwrap().into_raw())
-  }
-
-  fn on_leave(&mut self, ic: gum::GumInvocationContext) {
-    println!("getuid on_leave called!");
-    let mut ret = 42u32;
-    ic.replace_return_value(ret as *mut c_void);
-  }
-}
-*/
-
-
 pub fn test() {
   println!("gumshoe test");
-  /*
-  let mut lis = TestListener{};
-  gum::do_hook("open", &mut lis);
-  let mut lis2 = Test2Listener{};
-  gum::do_hook("execve", &mut lis2);
-  let mut lis3 = Test3Listener{};
-  gum::do_hook("getuid", &mut lis3);
-  */
-  //hook_exported_by_name(&mut TestListener{}, "open");
-  /*
-  let mut data = String::new();
-  let mut f = File::open("/etc/hosts").expect("Unable to open file");
-  f.read_to_string(&mut data).expect("Unable to read string");
-  println!("{}", data);
-  let output = std::process::Command::new("date").output().unwrap().stdout;
-  println!("stdout: {}", String::from_utf8_lossy(&output));
-  println!("{}", unsafe { getuid() });
-  */
 }
 
 #[cfg(test)]
@@ -186,3 +121,4 @@ mod tests {
       test()
     }
 }
+*/

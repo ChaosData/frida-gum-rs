@@ -8,6 +8,7 @@ pub struct GumInvocationContext {
   real: *mut ffi::GumInvocationContext
 }
 
+#[allow(non_camel_case_types)]
 pub enum GumPointCut {
   GUM_POINT_ENTER = 0,
   GUM_POINT_LEAVE = 1
@@ -21,9 +22,11 @@ impl GumInvocationContext {
   pub fn get_point_cut(&self) -> GumPointCut {
     let pc = unsafe { ffi::gum_invocation_context_get_point_cut(self.real) };
     match pc {
-      pc if pc == GumPointCut::GUM_POINT_ENTER as u32 => GumPointCut::GUM_POINT_ENTER,
-      pc if pc == GumPointCut::GUM_POINT_LEAVE as u32 => GumPointCut::GUM_POINT_LEAVE,
-      _ => panic!()
+      ffi::GumPointCut::GUM_POINT_ENTER => GumPointCut::GUM_POINT_ENTER,
+      ffi::GumPointCut::GUM_POINT_LEAVE => GumPointCut::GUM_POINT_LEAVE,
+      //pc if GumPointCut::GUM_POINT_ENTER => GumPointCut::GUM_POINT_ENTER,
+      //pc if pc == GumPointCut::GUM_POINT_LEAVE as u32 => GumPointCut::GUM_POINT_LEAVE,
+      //_ => panic!()
     }
   }
 
@@ -82,7 +85,7 @@ impl GumInvocationContext {
     }
   }
 
-  fn get_listener_thread_data<T>(&self) -> *mut T {
+  pub fn get_listener_thread_data<T>(&self) -> *mut T {
     let data = unsafe {
       ffi::gum_invocation_context_get_listener_thread_data(
         self.real, std::mem::size_of::<T>()
@@ -91,7 +94,7 @@ impl GumInvocationContext {
     data
   }
 
-  fn get_listener_function_data<T>(&self) -> *mut T {
+  pub fn get_listener_function_data<T>(&self) -> *mut T {
     let data = unsafe {
       ffi::gum_invocation_context_get_listener_function_data(
         self.real

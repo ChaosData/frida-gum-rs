@@ -14,11 +14,16 @@ impl Clone for _GumInvocationContext {
 }
 pub type GumInvocationContext = _GumInvocationContext;
 
-pub type GumPointCut = u32; //guint;
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum _GumPointCut { GUM_POINT_ENTER = 0, GUM_POINT_LEAVE = 1, }
+//pub type _GumPointCut = u32; //guint;
 
+//#[repr(u32)]
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(non_camel_case_types)]
+#[allow(dead_code)] // rust can't seem to tell that it's returned by an extern
+pub enum GumPointCut { GUM_POINT_ENTER = 0, GUM_POINT_LEAVE = 1, }
+
+//#[link(name = "frida-gum")]
 extern "C" {
   pub fn gum_invocation_context_get_point_cut(
     context: *const GumInvocationContext

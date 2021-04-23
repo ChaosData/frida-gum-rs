@@ -8,26 +8,30 @@ use libc::*;
 use std;
 
 extern {
-  fn gum_init_embedded() -> ();
-  fn gum_interceptor_obtain() -> *mut c_void;
-  fn get_new_archetypal_listener() -> *mut c_void;
-  fn ArchetypalListener_fill(this: *mut c_void,
+  pub fn gum_init_embedded() -> ();
+  pub fn gum_interceptor_obtain() -> *mut c_void;
+  pub fn get_new_archetypal_listener() -> *mut c_void;
+  pub fn ArchetypalListener_fill(this: *mut c_void,
                              on_enter: *const c_void,
                              on_leave: *const c_void,
                              obj: *mut c_void);
 
-  fn setup_hook(interceptor: *mut c_void,
+  pub fn setup_hook(interceptor: *mut c_void,
                 listener: *mut c_void,
                 addr: usize);
 
-  fn gum_module_find_export_by_name(module_name: *const c_char,
+  pub fn gum_module_find_export_by_name(module_name: *const c_char,
                                     symbol_name: *const c_char) -> usize;
-  fn gum_interceptor_detach_listener(interceptor: *mut c_void,
+
+  #[allow(dead_code)]
+  pub fn gum_interceptor_detach_listener(interceptor: *mut c_void,
                                      listener: *mut c_void);
-  fn g_object_unref(obj: *const c_void) -> ();
-  fn gum_deinit_embedded() -> ();
 
+  #[allow(dead_code)]
+  pub fn g_object_unref(obj: *const c_void) -> ();
 
+  #[allow(dead_code)]
+  pub fn gum_deinit_embedded() -> ();
 }
 
 
@@ -54,9 +58,11 @@ pub fn do_hook<T: ArchetypalListener>(symname: &str,
     );
   }
   let funcptr = unsafe {
+    let symname_cstr = std::ffi::CString::new(symname).unwrap();
     gum_module_find_export_by_name(
       std::ptr::null(),
-      std::ffi::CString::new(symname).unwrap().as_ptr()
+      //std::ffi::CString::new(symname).unwrap().as_ptr()
+      symname_cstr.as_ptr()
     )
   };
 

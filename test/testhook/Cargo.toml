@@ -5,13 +5,13 @@ authors = ["jtd"]
 
 [lib]
 name = "testhook"
-crate-type = ["dylib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 gumshoe = { path = "../.." }
 libc = "0.2"
 
 [build-dependencies]
-gcc = "0.3"
 gumshoe = { path = "../.." }
-
+cc = "1.0"
+base64 = "0.13"
