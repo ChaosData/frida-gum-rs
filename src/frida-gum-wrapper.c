@@ -16,7 +16,8 @@ struct _ArchetypalListener {
   GObject parent;
   void (*enter)(void*,void*);
   void (*leave)(void*,void*);
-  void* obj;
+  void* outer_listener;
+  void* interceptor;
 };
 
 static void archetypal_listener_iface_init(gpointer g_iface, gpointer iface_data);
@@ -36,11 +37,17 @@ ArchetypalListener* get_new_archetypal_listener() {
 
 void ArchetypalListener_fill(ArchetypalListener* self,
                              void (*_enter)(void*,void*),
-                             void (*_leave)(void*,void*), void* _obj) {
-  (void)self;
+                             void (*_leave)(void*,void*),
+                             void* _outer_listener,
+                             void* _interceptor) {
   self->enter = _enter;
   self->leave = _leave;
-  self->obj = _obj;
+  self->outer_listener = _outer_listener;
+  self->interceptor = _interceptor;
+}
+
+void ArchetypalListener_detach(ArchetypalListener* self) {
+  gum_interceptor_detach (self->interceptor, (GumInvocationListener*)self);
 }
 
 static void archetypal_listener_init(ArchetypalListener* self) {
@@ -56,12 +63,12 @@ static void archetypal_listener_class_init(ArchetypalListenerClass* klass) {
 
 static void on_enter(GumInvocationListener* lis, GumInvocationContext* ic) {
   ArchetypalListener* self = ARCHETYPAL_LISTENER(lis);
-  self->enter(self->obj, ic);
+  self->enter(self->outer_listener, ic);
 }
 
 static void on_leave(GumInvocationListener* lis, GumInvocationContext* ic) {
   ArchetypalListener* self = ARCHETYPAL_LISTENER(lis);
-  self->leave(self->obj, ic);
+  self->leave(self->outer_listener, ic);
 }
 
 static void archetypal_listener_iface_init(gpointer g_iface, gpointer iface_data) {

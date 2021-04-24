@@ -2,7 +2,6 @@ extern crate gumshoe;
 use gumshoe::*;
 
 extern crate libc;
-use libc::*;
 
 use std::fs::File;
 use std::io::Read;
@@ -20,10 +19,6 @@ impl ArchetypalListener for OpenListener {
 
   fn on_leave(&mut self, _ic: gum::GumInvocationContext) {
     println!("open(2) on_leave called!")
-  }
-
-  fn ptr(&mut self) -> *mut c_void {
-    self as *mut OpenListener as *mut c_void
   }
 }
 
