@@ -17,15 +17,26 @@ macro_rules! link {
     use std::fs::File;
     use std::io::Write;
 
-    pub fn link() {
+    pub fn link(config_gen: bool) {
+      let target = std::env::var("TARGET").unwrap();
+
+      if !std::path::Path::new(&format!("frida/{}/libfrida-gum.a", target)).exists() {
+        println!("cargo:warning=frida/{}/libfrida-gum.a is missing", target);
+        std::process::exit(1);
+      }
+
+      if config_gen {
+        let _ = std::fs::remove_file(".cargo/config");
+      }
+
       let b64 = gumshoe::codeb64();
       let code = &decode(b64).unwrap();
 
       std::fs::create_dir_all("gen").unwrap();
-      let mut f = File::create("gen/frida-gum-wrapper.c").expect("Unable to create file");
-      f.write_all(code.as_slice()).expect("Unable to write data");
+      let mut f = File::create("gen/frida-gum-wrapper.c").unwrap();
+      f.write_all(code.as_slice()).unwrap();
 
-      println!("cargo:rustc-flags=-L frida/{}", std::env::var("TARGET").unwrap());
+      println!("cargo:rustc-flags=-L frida/{}", target);
       println!("cargo:rustc-flags=-l frida-gum");
       println!("cargo:rustc-flags=-l dl");
       println!("cargo:rustc-flags=-l resolv");
@@ -37,11 +48,28 @@ macro_rules! link {
         .include("frida")
         .file("gen/frida-gum-wrapper.c")
         .compile("frida-gum-wrapper");
+
+      if config_gen {
+        let cwd = std::env::current_dir().unwrap();
+        let cwd = cwd.display();
+        let out_dir = std::env::var("OUT_DIR").unwrap();
+        let config = format!("\
+          [build]\n\
+          rustflags = [\"-C\", \"relocation-model=pic\",
+             \"-C\", \"link-args=-Wl,-Bstatic \
+                       -L {}/frida/{} -lfrida-gum \
+                       -L {} -l frida-gum-wrapper\"]\n",
+          cwd, target, out_dir
+        );
+
+        let mut f = File::create(".cargo/config").unwrap();
+        f.write_all(config.as_str().as_bytes()).unwrap();
+      }
     }
 
-    fn main() {
+    /*fn main() {
       link()
-    }
+    }*/
   }
 }
 
