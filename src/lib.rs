@@ -20,13 +20,15 @@ macro_rules! link {
     pub fn link(config_gen: bool) {
       let target = std::env::var("TARGET").unwrap();
 
+      let is_android: bool = target.ends_with("-android");
+
       if !std::path::Path::new(&format!("frida/{}/libfrida-gum.a", target)).exists() {
         println!("cargo:warning=frida/{}/libfrida-gum.a is missing", target);
         std::process::exit(1);
       }
 
       if config_gen {
-        let _ = std::fs::remove_file(".cargo/config");
+        let _ = std::fs::remove_file(".cargo/config.toml");
       }
 
       let b64 = gumshoe::codeb64();
@@ -39,10 +41,13 @@ macro_rules! link {
       println!("cargo:rustc-flags=-L frida/{}", target);
       println!("cargo:rustc-flags=-l frida-gum");
       println!("cargo:rustc-flags=-l dl");
-      println!("cargo:rustc-flags=-l resolv");
-      println!("cargo:rustc-flags=-l rt");
       println!("cargo:rustc-flags=-l m");
-      println!("cargo:rustc-flags=-l pthread");
+
+      if !is_android {
+        println!("cargo:rustc-flags=-l resolv");
+        println!("cargo:rustc-flags=-l rt");
+        println!("cargo:rustc-flags=-l pthread");
+      }
 
       cc::Build::new()
         .include("frida")
@@ -53,29 +58,57 @@ macro_rules! link {
         let cwd = std::env::current_dir().unwrap();
         let cwd = cwd.display();
         let out_dir = std::env::var("OUT_DIR").unwrap();
+
+        let mut android_links = String::from("");
+
+        if is_android {
+          let triple: Vec<&str> = target.split("-").collect(); // e.g. aarch64-linux-android
+          let clang_base = match std::env::var("ANDROID_NDK_HOME") {
+            Err(_) => {
+              if std::path::Path::new("/android-ndk").is_dir() {
+                //cross container
+                let entry_r = std::fs::read_dir("/android-ndk/lib64/clang").unwrap().next();
+                entry_r.unwrap().unwrap().path().to_string_lossy().to_string()
+              } else {
+                panic!("ANDROID_NDK_HOME not set, nor does /android-ndk exist");
+              }
+            },
+            Ok(ndk_home_path) => {
+              // assuming something like cargo-ndk for host-based build
+              // e.g. $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/19/lib/linux
+              let path = ndk_home_path + "/toolchains/llvm/prebuilt/linux-x86_64/lib/clang";
+              let clang_dir = std::path::Path::new(path.as_str());
+              if clang_dir.is_dir() {
+                let entry_r2 = std::fs::read_dir(path.as_str()).unwrap().next();
+                entry_r2.unwrap().unwrap().path().to_string_lossy().to_string()
+              } else {
+                panic!("currently only supports building from x86_64 linux when using ANDROID_NDK_HOME");
+              }
+            }
+          };
+          android_links.push_str(format!("-L {}/lib/linux -l clang_rt.builtins-{}-android", clang_base, triple[0]).as_str());
+        }
+
         let config = format!("\
-          [build]\n\
+          [target.{}]\n\
           rustflags = [\"-C\", \"relocation-model=pic\",
              \"-C\", \"link-args=-Wl,-Bstatic \
+                       {} \
                        -L {}/frida/{} -lfrida-gum \
                        -L {} -l frida-gum-wrapper\"]\n",
-          cwd, target, out_dir
+          target, android_links, cwd, target, out_dir
         );
 
-        let mut f = File::create(".cargo/config").unwrap();
+        let mut f = File::create(".cargo/config.toml").unwrap();
         f.write_all(config.as_str().as_bytes()).unwrap();
       }
     }
-
-    /*fn main() {
-      link()
-    }*/
   }
 }
 
 pub trait ArchetypalListener {
-  fn on_enter(&mut self, gum::GumInvocationContext);
-  fn on_leave(&mut self, gum::GumInvocationContext);
+  fn on_enter(&mut self, _ic: gum::GumInvocationContext);
+  fn on_leave(&mut self, _ic: gum::GumInvocationContext);
 }
 
 pub fn hook_exported_by_name<T: ArchetypalListener>(

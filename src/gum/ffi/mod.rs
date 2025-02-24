@@ -12,7 +12,7 @@ pub struct ArchetypalListener {
   _hidden: *mut c_void
 }
 
-extern {
+extern "C" {
   pub fn gum_init_embedded() -> ();
   pub fn gum_interceptor_obtain() -> *mut c_void;
   pub fn get_new_archetypal_listener() -> *mut ArchetypalListener;
